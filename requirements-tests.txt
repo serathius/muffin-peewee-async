@@ -1,0 +1,9 @@
+-r requirements.txt
+
+pytest
+webtest
+tox
+tox-travis
+aiopg
+flake8
+flake8-isort
