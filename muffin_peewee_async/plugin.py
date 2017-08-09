@@ -1,5 +1,3 @@
-import asyncio
-
 import peewee
 from muffin import plugins
 from muffin.utils import MuffinException
@@ -11,22 +9,6 @@ from playhouse.csv_utils import dump_csv
 from playhouse.csv_utils import load_csv
 from playhouse.db_url import connect
 from playhouse.db_url import register_database
-
-
-@asyncio.coroutine
-def peewee_middleware_factory(app, handler):
-    database = app.ps.peewee_async.database
-
-    @asyncio.coroutine
-    def middleware(request):
-        yield from database.connect_async(loop=app.loop)
-        try:
-            return (yield from handler(request))
-        except Exception:
-            yield from database.close_async()
-            raise
-
-    return middleware
 
 
 class Plugin(plugins.BasePlugin):
@@ -53,7 +35,7 @@ class Plugin(plugins.BasePlugin):
                 'Plugin `{}` requires for database schema using aiopg'.format(self.name))
 
         self.database.set_allow_sync(False)
-        self.manager = peewee_async.Manager(self.database, loop=app.loop)
+        self.manager = peewee_async.Manager(self.database)
         self.router = Router(self.database, migrate_dir=self.cfg.migrations_path)
 
         def pw_migrate(name: str=None, fake: bool=False):
@@ -115,9 +97,6 @@ class Plugin(plugins.BasePlugin):
                 self.app.logger.info('Loaded from %s' % path)
 
         self.app.manage.command(pw_load)
-
-    def start(self, app):
-        app.middlewares.insert(0, peewee_middleware_factory)
 
     def finish(self, app):
         if hasattr(self.database.obj, 'close_all'):
